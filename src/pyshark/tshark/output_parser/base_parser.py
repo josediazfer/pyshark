@@ -1,6 +1,10 @@
 class BaseTsharkOutputParser:
     DEFAULT_BATCH_SIZE = 2 ** 16
 
+    def __init__(self, parse_summaries=False):
+        super().__init__()
+        self._eof = False
+
     async def get_packets_from_stream(self, stream, existing_data, got_first_packet=True):
         """A coroutine which returns a single packet if it can be read from the given StreamReader.
 
@@ -14,6 +18,9 @@ class BaseTsharkOutputParser:
         if packet:
             packet = self._parse_single_packet(packet)
             return packet, existing_data
+
+        if self._eof:
+            return None, existing_data
 
         new_data = await stream.read(self.DEFAULT_BATCH_SIZE)
         existing_data += new_data

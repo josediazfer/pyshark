@@ -12,6 +12,7 @@ class FileCapture(Capture):
                  disable_protocol=None, tshark_path=None, override_prefs=None,
                  use_json=False, use_ek=False,
                  output_file=None, include_raw=False, eventloop=None, custom_parameters=None,
+                 follow_stream=None,
                  debug=False):
         """Creates a packet capture object by reading from file.
 
@@ -41,7 +42,7 @@ class FileCapture(Capture):
                                           tshark_path=tshark_path, override_prefs=override_prefs,
                                           use_json=use_json, use_ek=use_ek, output_file=output_file,
                                           include_raw=include_raw, eventloop=eventloop,
-                                          custom_parameters=custom_parameters, debug=debug)
+                                          custom_parameters=custom_parameters, follow_stream=follow_stream, debug=debug)
         self.input_filepath = pathlib.Path(input_file)
         if not self.input_filepath.exists():
             raise FileNotFoundError(f"[Errno 2] No such file or directory: {self.input_filepath}")

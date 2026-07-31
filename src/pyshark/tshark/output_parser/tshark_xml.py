@@ -38,7 +38,15 @@ class TsharkXmlParser(BaseTsharkOutputParser):
         :param data: string of a partial tshark xml.
         :return: a tuple of (tag, data). tag will be None if none is found.
         """
-        return _extract_tag_from_xml_data(data, tag_name=b"packet")
+        data_tag, existing_data = _extract_tag_from_xml_data(data, tag_name=b"packet")
+        if data_tag is None:
+            tag_name = b"psml" if self._parse_summaries else b"pdml"
+            data_tag_after = _extract_tag_close_from_xml_data(data, tag_name=tag_name)
+            if data_tag_after:
+                self._eof = True
+                existing_data = data_tag_after
+
+        return data_tag, existing_data
 
     async def _get_psml_struct(self, fd):
         """Gets the current PSML (packet summary xml) structure in a tuple ((None, leftover_data)),
@@ -98,6 +106,22 @@ def _packet_from_pdml_packet(pdml_packet):
                   captured_length=geninfo.get_field_value('caplen'),
                   interface_captured=frame.get_field_value('interface_id', raw=True))
 
+def _extract_tag_close_from_xml_data(data, tag_name):
+    """Gets data containing a (part of) tshark xml.
+
+    If the given closing tag is found in it, returns the remaining data after the closing tag.
+    Otherwise returns None and the same data.
+
+    :param data: string of a partial tshark xml.
+    :param tag_name: A bytes string of the tag name
+    :return: a tuple of (tag, data). tag will be None if none is found.
+    """
+    closing_tag = b"</" + tag_name + b">"
+    tag_end = data.find(closing_tag)
+    if tag_end != -1:
+        return data[(tag_end + len(closing_tag)):]
+
+    return None
 
 def _extract_tag_from_xml_data(data, tag_name=b"packet"):
     """Gets data containing a (part of) tshark xml.

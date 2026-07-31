@@ -14,6 +14,7 @@ from pyshark.packet.packet import Packet
 from pyshark.tshark.output_parser import tshark_ek
 from pyshark.tshark.output_parser import tshark_json
 from pyshark.tshark.output_parser import tshark_xml
+from pyshark.tshark.output_parser import tshark_follow_stream
 from pyshark.tshark.tshark import get_process_path, get_tshark_display_filter_flag, \
     tshark_supports_json, TSharkVersionException, get_tshark_version, tshark_supports_duplicate_keys
 
@@ -51,7 +52,7 @@ class Capture:
                  decryption_key=None, encryption_type="wpa-pwd", output_file=None,
                  decode_as=None,  disable_protocol=None, tshark_path=None,
                  override_prefs=None, capture_filter=None, use_json=False, include_raw=False,
-                 use_ek=False, custom_parameters=None, debug=False):
+                 use_ek=False, custom_parameters=None, follow_stream=None, debug=False):
 
         self.loaded = False
         self.tshark_path = tshark_path
@@ -77,6 +78,7 @@ class Capture:
         self._last_error_line = None
         self._stderr_handling_tasks = []
         self.__tshark_version = None
+        self._follow_stream = follow_stream
 
         if include_raw and not (use_json or use_ek):
             raise RawMustUseJsonException(
@@ -234,6 +236,12 @@ class Capture:
                     yield packet
                 if packet_count and packets_captured >= packet_count:
                     break
+
+                if parser._eof:
+                    if self._follow_stream and not isinstance(parser, tshark_follow_stream.TsharkFollowStreamParser):
+                        parser = tshark_follow_stream.TsharkFollowStreamParser()
+                    else:
+                        break
         finally:
             if tshark_process in self._running_processes:
                 self.eventloop.run_until_complete(
@@ -458,6 +466,11 @@ class Capture:
             for criterion, decode_as_proto in self._decode_as.items():
                 params += ["-d",
                            ",".join([criterion.strip(), decode_as_proto.strip()])]
+        if self._follow_stream:
+            if isinstance(self._follow_stream, dict):
+                params += ["-z", ",".join(["follow", self._follow_stream["proto"], "yaml", self._follow_stream["stream"]])]
+            else:
+                raise TypeError("Follow stream type not supported.")
 
         if self._disable_protocol:
             params += ["--disable-protocol", self._disable_protocol.strip()]
